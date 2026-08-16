@@ -15,3 +15,7 @@ vosk             # jarvis_core/voice/stt_vosk.py — alternate offline STT engin
 edge-tts         # jarvis_core/voice/tts_edge.py — alternate free/online TTS engine (JARVIS_VOICE_TTS_ENGINE=edgetts)
 pydub            # jarvis_core/voice/tts_edge.py — decodes EdgeTTS's MP3 response to raw PCM; needs a real
                  # `ffmpeg` binary installed and on PATH (not a pip package) to actually work
+audioop-lts; python_version >= "3.13"  # pydub imports the stdlib `audioop` module, which PEP 594
+                 # removed in Python 3.13 — this backport restores it. Without it, `import pydub`
+                 # itself fails on 3.13+ (confirmed: present as a Windows-Python-3.14 built-in on
+                 # this dev machine, but genuinely absent on the Linux 3.14 GitHub Actions runner).
