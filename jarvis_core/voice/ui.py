@@ -200,21 +200,27 @@ class HudCanvas(QWidget):
         self._blink_tick = 0
         self._particles: list[list[float]] = []
 
+        # ~25fps by default rather than the original port's 60fps (16ms):
+        # this widget's paintEvent() does a lot of QPainter work in plain
+        # Python every tick (grid dots, halo rings, arc rings, tick marks,
+        # particles, waveform bars) — on a modest CPU that's real,
+        # continuous main-thread load, felt as general UI/interaction lag
+        # even outside any audio-capture concern. 25fps is still visibly
+        # smooth for this kind of ambient animation.
         self._tmr = QTimer(self)
         self._tmr.timeout.connect(self._step)
-        self._tmr.start(16)
+        self._tmr.start(40)
 
     def set_state(self, state_value: str) -> None:
         self.state = state_value
         self.speaking = state_value == VoiceState.SPEAKING.value
-        # Throttle the 60fps repaint loop while the mic is actually
-        # capturing: this widget's paintEvent() runs on the main thread,
-        # and Python's GIL means a busy main thread can delay sounddevice's
+        # Throttle further while the mic is actually capturing: Python's
+        # GIL means busy main-thread paint work can delay sounddevice's
         # real-time input callback (also Python, also needs the GIL) long
         # enough to overflow PortAudio's input buffer — heard as repeated
         # "Mic input status: input overflow" warnings. Recording is the one
         # state where audio fidelity matters more than animation smoothness.
-        self._tmr.setInterval(200 if state_value == VoiceState.LISTENING.value else 16)
+        self._tmr.setInterval(200 if state_value == VoiceState.LISTENING.value else 40)
 
     def _step(self):
         self._tick += 1
@@ -965,6 +971,7 @@ def run() -> int:
         compute_type=config.whisper_compute_type,
         min_utterance_sec=config.min_utterance_sec,
         no_speech_prob_threshold=config.no_speech_prob_threshold,
+        beam_size=config.whisper_beam_size,
     )
     reasoner = VoiceReasoner(model=config.claude_model, max_tokens=config.claude_max_tokens, effort=config.claude_effort)
     tts = ElevenLabsTTS(

@@ -43,6 +43,9 @@ DEFAULT_WHISPER_DEVICE = "cpu"
 DEFAULT_WHISPER_COMPUTE_TYPE = "int8"
 DEFAULT_MIN_UTTERANCE_SEC = 0.4
 DEFAULT_NO_SPEECH_PROB_THRESHOLD = 0.6
+# Greedy decoding by default — see stt.py's own comment on why beam
+# search's accuracy gain isn't worth its CPU cost for a voice assistant.
+DEFAULT_WHISPER_BEAM_SIZE = 1
 
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -93,6 +96,7 @@ class VoiceConfig:
     whisper_compute_type: str
     min_utterance_sec: float
     no_speech_prob_threshold: float
+    whisper_beam_size: int
     sample_rate: int
     elevenlabs_key_path: Path
     faces_dir: Path
@@ -130,6 +134,7 @@ class VoiceConfig:
             no_speech_prob_threshold=_env_float(
                 "JARVIS_VOICE_NO_SPEECH_PROB_THRESHOLD", DEFAULT_NO_SPEECH_PROB_THRESHOLD
             ),
+            whisper_beam_size=_env_int("JARVIS_VOICE_WHISPER_BEAM_SIZE", DEFAULT_WHISPER_BEAM_SIZE),
             sample_rate=_env_int("JARVIS_VOICE_SAMPLE_RATE", DEFAULT_SAMPLE_RATE),
             elevenlabs_key_path=elevenlabs_key_path,
             faces_dir=faces_dir,

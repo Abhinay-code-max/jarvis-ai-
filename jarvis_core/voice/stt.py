@@ -48,9 +48,17 @@ class WhisperTranscriber:
         compute_type: str = "int8",
         min_utterance_sec: float = 0.4,
         no_speech_prob_threshold: float = 0.6,
+        beam_size: int = 1,
     ):
         self._min_utterance_sec = min_utterance_sec
         self._no_speech_prob_threshold = no_speech_prob_threshold
+        # beam_size=1 (greedy decoding) rather than faster-whisper's own
+        # default of 5 — on CPU, beam search is the dominant cost of a
+        # transcribe() call, often several times slower than greedy for a
+        # only-slightly-better-accuracy tradeoff. This is a push-to-talk
+        # voice assistant, not a transcription-accuracy product: a fast
+        # reply matters more here than the last few points of WER.
+        self._beam_size = beam_size
         if model is not None:
             self._model = model
         else:
@@ -77,7 +85,7 @@ class WhisperTranscriber:
             return None
 
         try:
-            segments, _info = self._model.transcribe(audio, beam_size=5)
+            segments, _info = self._model.transcribe(audio, beam_size=self._beam_size)
             segments = list(segments)
         except Exception as e:
             raise SttError(f"Whisper transcription failed: {e}") from e
