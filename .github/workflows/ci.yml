@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # test_dashboard_model.py doesn't actually import PyQt6 (see its own
+      # assertion that PyQt6.QtWidgets never lands in sys.modules), so this
+      # isn't load-bearing today -- set defensively in case a future test
+      # ever does instantiate a QApplication on this headless runner.
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the local dev environment (Python 3.14.4).
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      # Deliberately NOT set: JARVIS_LIVE_TEST, ANTHROPIC_API_KEY.
+      # tests/test_live_smoke.py and the real-subprocess tests in
+      # tests/test_code_interface.py are gated behind JARVIS_LIVE_TEST=1
+      # specifically so they skip cleanly here rather than needing API
+      # credentials or the `claude` CLI on the runner.
+      - name: Run default test suite
+        run: pytest tests/ -v
