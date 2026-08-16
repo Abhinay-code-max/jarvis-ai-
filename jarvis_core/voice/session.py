@@ -80,10 +80,18 @@ class VoiceSession:
 
         self._state = VoiceState.IDLE
         self._messages: list[dict[str, Any]] = []
+        self._user_name: str | None = None
 
     @property
     def state(self) -> VoiceState:
         return self._state
+
+    def set_user_name(self, name: str | None) -> None:
+        """Called by ui.py once face_id.py's startup scan resolves (or
+        re-resolves) to a recognized name — passed to the reasoner on
+        every subsequent turn. Never guessed at here: a session simply
+        has no name until something else identifies one."""
+        self._user_name = name
 
     # -- push-to-talk entry points ---------------------------------------
 
@@ -150,7 +158,7 @@ class VoiceSession:
         self._messages.append({"role": "user", "content": transcript})
 
         try:
-            reply = self._reasoner.respond(self._messages)
+            reply = self._reasoner.respond(self._messages, user_name=self._user_name)
         except VoiceReasonerError as e:
             self._set_state(VoiceState.IDLE)
             self._emit_error(f"Claude request failed: {e}")

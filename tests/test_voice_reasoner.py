@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import anthropic  # noqa: E402
 import httpx  # noqa: E402
 
-from jarvis_core.voice.voice_reasoner import VoiceReasoner, VoiceReasonerError  # noqa: E402
+from jarvis_core.voice.voice_reasoner import SYSTEM_PROMPT, VoiceReasoner, VoiceReasonerError  # noqa: E402
 
 
 class _FakeTextBlock:
@@ -76,6 +76,22 @@ class VoiceReasonerTest(unittest.TestCase):
 
         self.assertIn("JARVIS", client.messages.last_kwargs["system"])
         self.assertEqual(client.messages.last_kwargs["output_config"], {"effort": "low"})
+
+    def test_user_name_is_appended_to_system_prompt_when_given(self):
+        response = SimpleNamespace(stop_reason="end_turn", content=[_FakeTextBlock("hi")])
+        client = _FakeClient(response)
+
+        _reasoner(client).respond([{"role": "user", "content": "hi"}], user_name="Abhinay")
+
+        self.assertIn("Abhinay", client.messages.last_kwargs["system"])
+
+    def test_no_user_name_leaves_system_prompt_unchanged(self):
+        response = SimpleNamespace(stop_reason="end_turn", content=[_FakeTextBlock("hi")])
+        client = _FakeClient(response)
+
+        _reasoner(client).respond([{"role": "user", "content": "hi"}])
+
+        self.assertEqual(client.messages.last_kwargs["system"], SYSTEM_PROMPT)
 
     def test_full_message_history_is_forwarded_unchanged(self):
         response = SimpleNamespace(stop_reason="end_turn", content=[_FakeTextBlock("hi")])

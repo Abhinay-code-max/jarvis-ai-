@@ -76,6 +76,9 @@ class MicRecorder:
         try:
             self._stream = sd.InputStream(
                 samplerate=self.sample_rate, channels=self._channels, dtype="float32", callback=_callback,
+                latency="high",  # more PortAudio buffering slack; push-to-talk has no real-time-monitoring
+                                  # need for low latency here, and this is cheap insurance against the input
+                                  # buffer overflowing when something else briefly holds the GIL (e.g. UI paint work)
             )
             self._stream.start()
         except Exception as e:

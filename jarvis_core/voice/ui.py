@@ -207,6 +207,14 @@ class HudCanvas(QWidget):
     def set_state(self, state_value: str) -> None:
         self.state = state_value
         self.speaking = state_value == VoiceState.SPEAKING.value
+        # Throttle the 60fps repaint loop while the mic is actually
+        # capturing: this widget's paintEvent() runs on the main thread,
+        # and Python's GIL means a busy main thread can delay sounddevice's
+        # real-time input callback (also Python, also needs the GIL) long
+        # enough to overflow PortAudio's input buffer — heard as repeated
+        # "Mic input status: input overflow" warnings. Recording is the one
+        # state where audio fidelity matters more than animation smoothness.
+        self._tmr.setInterval(200 if state_value == VoiceState.LISTENING.value else 16)
 
     def _step(self):
         self._tick += 1
@@ -557,6 +565,7 @@ class MainWindow(QMainWindow):
         self._store = store
         self._face_identifier = face_identifier
         self._process_start = time.time()
+        self._identified_name: str | None = None
 
         self._signals = _SessionSignals()
         self._signals.state_changed.connect(self._on_state_changed)
@@ -575,7 +584,7 @@ class MainWindow(QMainWindow):
         self._start_identity_scan()
 
     def _new_session(self) -> VoiceSession:
-        return VoiceSession(
+        session = VoiceSession(
             recorder=self._recorder,
             player=self._player,
             transcriber=self._transcriber,
@@ -586,6 +595,11 @@ class MainWindow(QMainWindow):
             on_transcript=lambda role, text: self._signals.transcript.emit(role, text),
             on_error=lambda message: self._signals.error.emit(message),
         )
+        # Identity is a property of who's physically present, not of one
+        # conversation's history — carry it forward into a fresh session
+        # (e.g. after "New Session") rather than forgetting it.
+        session.set_user_name(self._identified_name)
+        return session
 
     # -- layout --------------------------------------------------------
 
@@ -853,6 +867,8 @@ class MainWindow(QMainWindow):
         threading.Thread(target=scan, daemon=True).start()
 
     def _on_identity(self, name: str, confidence: float) -> None:
+        self._identified_name = name or None
+        self._session.set_user_name(self._identified_name)
         if name:
             self._identity_label.setText(f"◆ {name.upper()}")
             self._identity_label.setStyleSheet(f"color: {GREEN}; padding: 2px 10px;")

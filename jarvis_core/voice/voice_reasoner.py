@@ -67,19 +67,34 @@ class VoiceReasoner:
         self._effort = effort
         self._client = client or anthropic.Anthropic()
 
-    def respond(self, messages: list[dict[str, Any]]) -> str:
+    def respond(self, messages: list[dict[str, Any]], user_name: str | None = None) -> str:
         """`messages` is the full conversation so far (the API is
         stateless — see claude-api conventions), each entry
         {"role": "user"|"assistant", "content": str}. Returns Claude's
         reply text. Raises VoiceReasonerError on any API-layer failure
         or an empty/refused response — callers (session.py) must never
         treat a caught VoiceReasonerError as "Claude said nothing", only
-        as "the call failed"."""
+        as "the call failed".
+
+        `user_name` is the currently-identified speaker (see
+        face_id.py), if any — appended to the system prompt as context,
+        never as a claim of certainty Claude doesn't actually have (face
+        match confidence is never perfect, so this is phrased as "likely
+        speaking with", not asserted as fact)."""
+        system_prompt = SYSTEM_PROMPT
+        if user_name:
+            system_prompt += (
+                f"\n\nYou are likely speaking with {user_name} (identified via face "
+                "recognition, not stated by them) — you may address them by name "
+                "naturally where it fits, but don't make a point of announcing "
+                "that you recognized them unless it's relevant."
+            )
+
         try:
             response = self._client.messages.create(
                 model=self._model,
                 max_tokens=self._max_tokens,
-                system=SYSTEM_PROMPT,
+                system=system_prompt,
                 output_config={"effort": self._effort},
                 messages=messages,
             )

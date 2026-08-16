@@ -86,9 +86,11 @@ class _StubReasoner:
     def __init__(self, result="hello there"):
         self._result = result
         self.calls = []
+        self.user_names: list[str | None] = []
 
-    def respond(self, messages):
+    def respond(self, messages, user_name=None):
         self.calls.append(list(messages))
+        self.user_names.append(user_name)
         if isinstance(self._result, Exception):
             raise self._result
         return self._result
@@ -156,6 +158,25 @@ class VoiceSessionTest(unittest.TestCase):
             (session.session_id, "assistant", "hello there"),
         ])
         self.assertEqual(session.state, VoiceState.IDLE)
+
+    def test_set_user_name_is_passed_to_the_reasoner(self):
+        transcriber = _StubTranscriber("hello jarvis")
+        reasoner = _StubReasoner("hello there")
+        session, *_ = _session(transcriber=transcriber, reasoner=reasoner)
+
+        session.set_user_name("Abhinay")
+        self._run_full_turn(session)
+
+        self.assertEqual(reasoner.user_names, ["Abhinay"])
+
+    def test_no_user_name_by_default(self):
+        transcriber = _StubTranscriber("hello jarvis")
+        reasoner = _StubReasoner("hello there")
+        session, *_ = _session(transcriber=transcriber, reasoner=reasoner)
+
+        self._run_full_turn(session)
+
+        self.assertEqual(reasoner.user_names, [None])
 
     def test_conversation_history_accumulates_across_turns(self):
         transcriber = _StubTranscriber("first question")
