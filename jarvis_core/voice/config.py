@@ -26,6 +26,10 @@ from jarvis_core.config import JARVIS_DIR
 
 DEFAULT_ELEVENLABS_KEY_PATH = JARVIS_DIR / "jarvis_core" / "voice" / "elevenlabs_key.txt"
 
+# Face-recognition enrollment data (see face_id.py) — one .npy encoding
+# per enrolled person, same 0600-local-file family as the ElevenLabs key.
+DEFAULT_FACES_DIR = JARVIS_DIR / "jarvis_core" / "voice" / "faces"
+
 # claude-opus-5 per this project's standing rule: default to the most
 # capable model unless the user says otherwise. Latency is controlled
 # via `effort`, not by swapping to a cheaper model — see
@@ -91,6 +95,7 @@ class VoiceConfig:
     no_speech_prob_threshold: float
     sample_rate: int
     elevenlabs_key_path: Path
+    faces_dir: Path
     elevenlabs_voice_id: str
     elevenlabs_model_id: str
     elevenlabs_output_format: str
@@ -111,6 +116,9 @@ class VoiceConfig:
         key_path_raw = os.environ.get("JARVIS_VOICE_ELEVENLABS_KEY_PATH", "").strip()
         elevenlabs_key_path = Path(key_path_raw) if key_path_raw else DEFAULT_ELEVENLABS_KEY_PATH
 
+        faces_dir_raw = os.environ.get("JARVIS_VOICE_FACES_DIR", "").strip()
+        faces_dir = Path(faces_dir_raw) if faces_dir_raw else DEFAULT_FACES_DIR
+
         return cls(
             claude_model=os.environ.get("JARVIS_VOICE_CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL),
             claude_max_tokens=_env_int("JARVIS_VOICE_CLAUDE_MAX_TOKENS", DEFAULT_CLAUDE_MAX_TOKENS),
@@ -124,6 +132,7 @@ class VoiceConfig:
             ),
             sample_rate=_env_int("JARVIS_VOICE_SAMPLE_RATE", DEFAULT_SAMPLE_RATE),
             elevenlabs_key_path=elevenlabs_key_path,
+            faces_dir=faces_dir,
             elevenlabs_voice_id=os.environ.get("JARVIS_VOICE_ELEVENLABS_VOICE_ID", DEFAULT_ELEVENLABS_VOICE_ID),
             elevenlabs_model_id=os.environ.get("JARVIS_VOICE_ELEVENLABS_MODEL_ID", DEFAULT_ELEVENLABS_MODEL_ID),
             elevenlabs_output_format=os.environ.get(
