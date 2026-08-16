@@ -1,0 +1,10 @@
+# eyv_poller + jarvis_core — dependencies
+#
+#   pip install -r requirements.txt
+
+requests
+anthropic
+PyQt6            # jarvis_core/dashboard.py and jarvis_core/voice/ui.py only —
+                 # not needed to run eyv_poller or jarvis_core's own reasoning/polling process
+faster-whisper   # jarvis_core/voice/ — local speech-to-text (no cloud STT dependency)
+sounddevice      # jarvis_core/voice/ — microphone capture + audio playback

@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.env
+
+# virtual environments
+venv/
+.venv/
+env/
+
+# local data / secrets
+*.db
+*.sqlite
+*.sqlite3
+secrets/
+*.token
+token.json
