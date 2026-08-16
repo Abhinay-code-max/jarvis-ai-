@@ -11,3 +11,7 @@ sounddevice      # jarvis_core/voice/ — microphone capture + audio playback
 psutil           # jarvis_core/voice/ui.py — CPU/RAM stats in the HUD's left panel
 face-recognition # jarvis_core/voice/face_id.py — face enrollment/identification (wraps dlib)
 opencv-python    # jarvis_core/voice/face_id.py — webcam capture for face_recognition
+vosk             # jarvis_core/voice/stt_vosk.py — alternate offline STT engine (JARVIS_VOICE_STT_ENGINE=vosk)
+edge-tts         # jarvis_core/voice/tts_edge.py — alternate free/online TTS engine (JARVIS_VOICE_TTS_ENGINE=edgetts)
+pydub            # jarvis_core/voice/tts_edge.py — decodes EdgeTTS's MP3 response to raw PCM; needs a real
+                 # `ffmpeg` binary installed and on PATH (not a pip package) to actually work

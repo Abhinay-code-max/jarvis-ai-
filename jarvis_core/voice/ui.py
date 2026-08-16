@@ -91,8 +91,10 @@ from jarvis_core.voice.config import VoiceConfig, VoiceConfigError
 from jarvis_core.voice.face_id import FaceIdentifier
 from jarvis_core.voice.session import VoiceSession, VoiceState
 from jarvis_core.voice.stt import WhisperTranscriber
+from jarvis_core.voice.stt_vosk import VoskTranscriber
 from jarvis_core.voice.store import VoiceStore, VoiceStoreError
 from jarvis_core.voice.tts import ElevenLabsTTS
+from jarvis_core.voice.tts_edge import EdgeTTS
 from jarvis_core.voice.voice_reasoner import VoiceReasoner
 
 _log = logging.getLogger("jarvis_core.voice.ui")
@@ -948,10 +950,11 @@ def run() -> int:
         print(f"Configuration error: {e}", file=sys.stderr)
         return 1
 
-    if voice_auth.get_key(config.elevenlabs_key_path) is None:
+    if config.tts_engine == "elevenlabs" and voice_auth.get_key(config.elevenlabs_key_path) is None:
         print(
             f"No ElevenLabs API key stored at {config.elevenlabs_key_path} — run "
-            "'python -m jarvis_core.voice.auth set' first.",
+            "'python -m jarvis_core.voice.auth set' first, or set JARVIS_VOICE_TTS_ENGINE=edgetts "
+            "to use the free EdgeTTS engine instead.",
             file=sys.stderr,
         )
         return 1
@@ -965,24 +968,34 @@ def run() -> int:
 
     recorder = MicRecorder(sample_rate=config.sample_rate)
     player = AudioPlayer()
-    transcriber = WhisperTranscriber(
-        model_size=config.whisper_model_size,
-        device=config.whisper_device,
-        compute_type=config.whisper_compute_type,
-        min_utterance_sec=config.min_utterance_sec,
-        no_speech_prob_threshold=config.no_speech_prob_threshold,
-        beam_size=config.whisper_beam_size,
-    )
+
+    if config.stt_engine == "vosk":
+        transcriber = VoskTranscriber(model_path=config.vosk_model_path, min_utterance_sec=config.min_utterance_sec)
+    else:
+        transcriber = WhisperTranscriber(
+            model_size=config.whisper_model_size,
+            device=config.whisper_device,
+            compute_type=config.whisper_compute_type,
+            min_utterance_sec=config.min_utterance_sec,
+            no_speech_prob_threshold=config.no_speech_prob_threshold,
+            beam_size=config.whisper_beam_size,
+        )
+
     reasoner = VoiceReasoner(model=config.claude_model, max_tokens=config.claude_max_tokens, effort=config.claude_effort)
-    tts = ElevenLabsTTS(
-        voice_id=config.elevenlabs_voice_id,
-        model_id=config.elevenlabs_model_id,
-        output_format=config.elevenlabs_output_format,
-        get_api_key=lambda: voice_auth.get_key(config.elevenlabs_key_path),
-        request_timeout_sec=config.request_timeout_sec,
-        max_retries=config.max_retries,
-        retry_backoff_base_sec=config.retry_backoff_base_sec,
-    )
+
+    if config.tts_engine == "edgetts":
+        tts = EdgeTTS(voice=config.edge_tts_voice, sample_rate=config.sample_rate)
+    else:
+        tts = ElevenLabsTTS(
+            voice_id=config.elevenlabs_voice_id,
+            model_id=config.elevenlabs_model_id,
+            output_format=config.elevenlabs_output_format,
+            get_api_key=lambda: voice_auth.get_key(config.elevenlabs_key_path),
+            request_timeout_sec=config.request_timeout_sec,
+            max_retries=config.max_retries,
+            retry_backoff_base_sec=config.retry_backoff_base_sec,
+        )
+
     face_identifier = FaceIdentifier(config.faces_dir)
 
     app = QApplication(sys.argv)

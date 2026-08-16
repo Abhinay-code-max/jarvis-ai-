@@ -49,6 +49,12 @@ DEFAULT_WHISPER_BEAM_SIZE = 1
 
 DEFAULT_SAMPLE_RATE = 16000
 
+# Engine selection — "whisper" (default, offline, auto-downloaded model)
+# or "vosk" (offline, but needs a manually-downloaded model directory;
+# see stt_vosk.py). No default model path for Vosk — unlike Whisper,
+# guessing one would silently point at a folder that doesn't exist.
+DEFAULT_STT_ENGINE = "whisper"
+
 # ElevenLabs' well-known default premade voice ("Rachel") — a sane
 # technical default, freely overridable; not a business decision the
 # way eyv_poller's poll interval was, so it's fine to default it.
@@ -58,6 +64,12 @@ DEFAULT_ELEVENLABS_OUTPUT_FORMAT = "pcm_16000"
 DEFAULT_REQUEST_TIMEOUT_SEC = 15.0
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_BACKOFF_BASE_SEC = 1.5
+
+# Engine selection — "elevenlabs" (default, needs a stored API key,
+# raw-PCM response) or "edgetts" (free, no key, but needs ffmpeg on
+# PATH to decode its MP3 response — see tts_edge.py).
+DEFAULT_TTS_ENGINE = "elevenlabs"
+DEFAULT_EDGE_TTS_VOICE = "en-US-GuyNeural"
 
 
 class VoiceConfigError(Exception):
@@ -98,6 +110,8 @@ class VoiceConfig:
     no_speech_prob_threshold: float
     whisper_beam_size: int
     sample_rate: int
+    stt_engine: str
+    vosk_model_path: Path | None
     elevenlabs_key_path: Path
     faces_dir: Path
     elevenlabs_voice_id: str
@@ -106,6 +120,8 @@ class VoiceConfig:
     request_timeout_sec: float
     max_retries: int
     retry_backoff_base_sec: float
+    tts_engine: str
+    edge_tts_voice: str
 
     @classmethod
     def load(cls, dotenv_path: Path | None = None) -> "VoiceConfig":
@@ -123,6 +139,23 @@ class VoiceConfig:
         faces_dir_raw = os.environ.get("JARVIS_VOICE_FACES_DIR", "").strip()
         faces_dir = Path(faces_dir_raw) if faces_dir_raw else DEFAULT_FACES_DIR
 
+        stt_engine = os.environ.get("JARVIS_VOICE_STT_ENGINE", DEFAULT_STT_ENGINE).strip().lower()
+        if stt_engine not in ("whisper", "vosk"):
+            raise VoiceConfigError(f"JARVIS_VOICE_STT_ENGINE must be 'whisper' or 'vosk', got {stt_engine!r}")
+
+        vosk_model_path_raw = os.environ.get("JARVIS_VOICE_VOSK_MODEL_PATH", "").strip()
+        vosk_model_path = Path(vosk_model_path_raw) if vosk_model_path_raw else None
+        if stt_engine == "vosk" and vosk_model_path is None:
+            raise VoiceConfigError(
+                "JARVIS_VOICE_STT_ENGINE=vosk requires JARVIS_VOICE_VOSK_MODEL_PATH to be set — "
+                "download a model from https://alphacephei.com/vosk/models and point this at "
+                "the extracted folder."
+            )
+
+        tts_engine = os.environ.get("JARVIS_VOICE_TTS_ENGINE", DEFAULT_TTS_ENGINE).strip().lower()
+        if tts_engine not in ("elevenlabs", "edgetts"):
+            raise VoiceConfigError(f"JARVIS_VOICE_TTS_ENGINE must be 'elevenlabs' or 'edgetts', got {tts_engine!r}")
+
         return cls(
             claude_model=os.environ.get("JARVIS_VOICE_CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL),
             claude_max_tokens=_env_int("JARVIS_VOICE_CLAUDE_MAX_TOKENS", DEFAULT_CLAUDE_MAX_TOKENS),
@@ -136,6 +169,8 @@ class VoiceConfig:
             ),
             whisper_beam_size=_env_int("JARVIS_VOICE_WHISPER_BEAM_SIZE", DEFAULT_WHISPER_BEAM_SIZE),
             sample_rate=_env_int("JARVIS_VOICE_SAMPLE_RATE", DEFAULT_SAMPLE_RATE),
+            stt_engine=stt_engine,
+            vosk_model_path=vosk_model_path,
             elevenlabs_key_path=elevenlabs_key_path,
             faces_dir=faces_dir,
             elevenlabs_voice_id=os.environ.get("JARVIS_VOICE_ELEVENLABS_VOICE_ID", DEFAULT_ELEVENLABS_VOICE_ID),
@@ -148,4 +183,6 @@ class VoiceConfig:
             retry_backoff_base_sec=_env_float(
                 "JARVIS_VOICE_RETRY_BACKOFF_BASE_SEC", DEFAULT_RETRY_BACKOFF_BASE_SEC
             ),
+            tts_engine=tts_engine,
+            edge_tts_voice=os.environ.get("JARVIS_VOICE_EDGE_TTS_VOICE", DEFAULT_EDGE_TTS_VOICE),
         )
